@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <%- include('partials/header.ejs'); %>
+    </head>
+    <body>
+        <div class="container">
+            <div class="card-deck mb-3 text-center">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h4 class="my-0 font-weight-normal">Buscar Farmacias</h4>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="form-group">
+                                <label for="comuna">Comuna</label>
+                                <select class="form-control" name="comuna" id="comuna"></select>
+                            </div>
+                            <div class="form-group">
+                                <div class="alert alert-warning alert-dismissible fade show" role="alert" id ="buscar-alert" style="display: none;">
+                                    <strong>Debe seleccionar una comuna</strong>
+                                    <button type="button" class="close" id="btn-close">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="nombre-local">Nombre Local</label>
+                                <input type="text" class="form-control" placeholder="Nombre Local" name="nombre-local">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="btn-buscar">Buscar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card-deck mb-3 text-center">
+                <table class="table" id="resultados-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Dirección</th>
+                            <th scope="col">Hora Apertura</th>
+                            <th scope="col">Hora Cierre</th>
+                            <th scope="col">Ver Mapa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultados-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal fade" id="mapa-modal" tabindex="-1" role="dialog" aria-labelledby="mapa-modal-title" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="mapa-modal-title">Mapa Farmacia</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <iframe width="450" height="450" frameborder="0" style="border: 0;" id="map-iframe"></iframe>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <%- include('partials/importjs.ejs'); %>
+        <script>
+            $(document).ready(function() {
+                const comunas = "<%- comunas %>";
+                $('#comuna').append(comunas);
+                $('#btn-close').click(function() {
+                    $('#buscar-alert').hide();
+                });
+                $('#btn-buscar').click(function() {
+                    if ($('#comuna').val() == 0) {
+                        $('#buscar-alert').show();
+                    } else {
+                        $('#buscar-alert').hide();
+                        $('#resultados-table').hide();
+                        $.ajax({
+                            url: '/farmacias',
+                            data: {
+                                comuna: $('#comuna option:selected').text(),
+                                nombreLocal: $.trim($('#nombre-local').val())
+                            },
+                            success: function(result) {
+                                $('#resultados-table tr').remove();
+                                $('#resultados-table').show();
+                                let resultFragment = new DocumentFragment();
+                                if (result.farmacias.length > 0) {
+                                    for (let idx in result.farmacias) {
+                                        let item = result.farmacias[idx];
+                                        let tr = document.createElement('tr');
+                                        let td1 = document.createElement('td');
+                                        td1.textContent = item.local_nombre;
+                                        let td2 = document.createElement('td');
+                                        td2.textContent = item.local_direccion;
+                                        let td3 = document.createElement('td');
+                                        td3.textContent = item.funcionamiento_hora_apertura;
+                                        let td4 = document.createElement('td');
+                                        td4.textContent = item.funcionamiento_hora_cierre;
+                                        let td5 = document.createElement('td');
+                                        let a = document.createElement('a');
+                                        a.textContent = 'Ver Mapa';
+                                        a.href = '#';
+                                        a.addEventListener('click', event => {
+                                            launchMapa(item);
+                                        });
+                                        td5.appendChild(a);
+                                        tr.appendChild(td1);
+                                        tr.appendChild(td2);
+                                        tr.appendChild(td3);
+                                        tr.appendChild(td4);
+                                        tr.appendChild(td5);
+                                        resultFragment.appendChild(tr);
+                                    };
+                                } else {
+                                    let tr = document.createElement('tr');
+                                    let td = document.createElement('td');
+                                    td.textContent = 'No se encontraron resultados.';
+                                    td.colSpan = "5";
+                                    tr.appendChild(td);
+                                    resultFragment.appendChild(tr);
+                                }
+                                $('#resultados-table-body').append(resultFragment);
+                            }
+                        });
+                    }
+                });
+            });
+
+            function launchMapa(objFarmacia) {
+                $('#mapa-modal').modal();
+                let url = 'https://www.google.com/maps/embed/v1/place';
+                url += '?key=AIzaSyAFwNCtKagTGX80bGYHpIKrjJcFsy1Chvs';
+                url += '&center='+objFarmacia.local_lat+','+objFarmacia.local_lng;
+                url += '&zoom=15';
+                url += '&q='+objFarmacia.local_direccion+'+'+objFarmacia.comuna_nombre;
+                $('#map-iframe').attr('src', url);
+            }
+        </script>
+    </body>
+</html>
